@@ -1,0 +1,78 @@
+#!/bin/bash
+
+if [[ -z $disk || -z $username || -z $hostname || -z $zone ]]; then
+	echo "run export disk='disk_location' username='username' hostname='hostname' zone='zoneinfo' country='country'"
+	exit 1;
+fi
+
+keymap=${keymap:-"us"}
+lang=${lang:-"en_US.UTF-8"}
+charset=${charset:-"UTF-8"}
+
+src="https://raw.githubusercontent.com/avimuser/archinstall/main"
+
+export keymap lang charset src
+
+PACKAGES="amd-ucode sudo networkmanager systemd-resolvconf reflector man-db neovim"
+
+echo "Partioning $disk"
+(
+	echo g
+	echo n
+	echo
+	echo
+	echo +1G
+	echo n
+	echo
+	echo
+	echo
+	echo t
+	echo 1
+	echo 1
+	echo w
+) | fdisk $disk > /dev/null || { echo "Failed to partition disk"; exit 1; }
+
+sleep 1;
+
+if [[ $(lsblk $disk -lno NAME | wc -l) -ne 3 ]]; then
+	echo "Automatic partioning failed"
+	exit 1
+fi
+
+boot=$(lsblk $disk -lno PATH | head -n 2 | tail -1)
+root=$(lsblk $disk -lno PATH | head -n 3 | tail -1)
+
+echo "Formatting $boot to fat32"
+( mkfs.fat -F 32 $boot > /dev/null ) ||
+	{ echo "Failed to format $boot"; exit 1; }
+
+echo "Formatting $root to ext4"
+( mkfs.ext4 $root > /dev/null ) || 
+	{ echo "Failed to format $root"; exit 1; }
+
+sleep 1;
+
+echo "Mounting volumes"
+mount $root /mnt
+mount $boot /mnt/boot --mkdir
+
+if [[ $country ]]; then
+	echo "Rating mirrors"
+	reflector \
+		--country $country --save /etc/pacman.d/mirrorlist --protocol https \
+		--download-timeout 4 --connection-timeout 4 --cache-timeout 4 \
+		--fastest 10 --sort rate --threads 4
+else
+	echo "\$country not set, not rating mirrors"
+fi
+
+echo "Installing system"
+( pacstrap -K /mnt base linux linux-firmware grub efibootmgr $PACKAGES ) || 
+	{ umount -R /mnt; echo "Failed to install packages"; exit 1; }
+
+genfstab -U /mnt >> /mnt/etc/fstab
+
+arch-chroot /mnt bash <(curl $src/setup-chroot)
+
+umount -R /mnt
+reboot

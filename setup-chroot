@@ -1,0 +1,48 @@
+#!/bin/bash
+
+config_dir="$src/conf"
+
+# Time
+ln -sf /usr/share/zoneinfo/$zone /etc/localtime
+hwclock --systohc
+
+# Locale
+echo "$lang $charset" >> /etc/locale.gen
+locale-gen
+echo "LANG=$lang" > /etc/locale.conf
+echo "KEYMAP=$keymap" > /etc/vconsole.conf
+
+# Network
+echo $hostname > /etc/hostname
+curl $config_dir/NetworkManager/dns.conf > /etc/NetworkManager/conf.d/dns.conf
+systemctl enable NetworkManager
+
+# DNS
+mkdir -p /etc/systemd/resolved.conf.d
+curl $config_dir/systemd-resolved/dns.conf > /etc/systemd/resolved.conf.d/dns.conf 
+systemctl enable systemd-resolved
+
+# Reflector
+curl $config_dir/reflector/reflector.conf > /etc/xdg/reflector/reflector.conf
+echo "--country $country" > /etc/xdg/reflector/reflector.conf
+
+curl $config_dir/reflector/reflector.timer > /usr/lib/systemd/system/reflector.timer
+systemctl enable reflector.timer
+
+# Bootloader
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# Users
+echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers
+useradd -mG wheel,video,audio,input $username
+
+# Extras
+ln -sf /bin/nvim /bin/vi
+ln -sf /bin/nvim /bin/vim
+
+# Password
+echo "Enter password for root"
+passwd
+echo "Enter password for $username"
+passwd $username

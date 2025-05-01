@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Pacman mirrorlist every 3 hours and on boot with Reflector
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=3h
+
+[Install]
+WantedBy=timers.target

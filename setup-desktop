@@ -1,0 +1,26 @@
+#!/bin/bash
+
+conf_dir="https://raw.githubusercontent.com/avimuser/archinstall/main/conf"
+dotfiles="https://github.com/avimuser/dotfiles.git"
+
+# Install AUR Helper
+sudo pacman -S base-devel git --noconfirm && git clone https://aur.archlinux.org/paru-bin.git && cd paru-bin && makepkg -si && cd .. && rm -rf paru-bin
+
+# Install Essentials
+sudo pacman -S \
+	tmux fzf fish stow \
+	adwaita-fonts ttf-jetbrains-mono ttc-iosevka \
+	swayidle swaybg swaylock wmenu foot grim slurp wob thunar wlsunset wl-clipboard firefox \
+	nwg-displays nwg-look \
+	xdg-desktop-portal-gtk xdg-desktop-portal-wlr xorg-xwayland mesa xf86-video-amdgpu vulkan-radeon
+paru -S brillo swayfx antidot-bin --skipreview
+
+# Dotfiles
+git clone $dotfiles $HOME/Dotfiles
+$HOME/Dotfiles/setup.sh
+
+# Firefox
+sudo curl $conf_dir/firefox/local-settings.js -o /usr/lib/firefox/defaults/pref/local-settings.js
+sudo curl $conf_dir/firefox/mozilla.cfg -o /usr/lib/firefox/mozilla.cfg
+
+chsh -s /bin/fish

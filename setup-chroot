@@ -38,6 +38,8 @@ echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers
 useradd -mG wheel,video,audio,input $username
 
 # Extras
+curl $config_dir/modprobe.d/blacklist.conf > /etc/modprobe.d/blacklist.conf
+curl $config_dir/sysctl.d/settings.conf > /etc/sysctl.d/settings.conf
 ln -sf /bin/nvim /bin/vi
 ln -sf /bin/nvim /bin/vim
 
